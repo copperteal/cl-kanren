@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # 
-#+TITLE: CL-KANREN: An implementation of miniKanren in Common Lisp
+#+TITLE: CL-KANREN: An implementation of [[https://minikanren.org/][miniKanren]] in Common Lisp
 #+AUTHOR: J. David Taylor
 
 * Features and Implementation Notes
