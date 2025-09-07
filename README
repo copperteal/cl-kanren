@@ -20,7 +20,7 @@
 
 * Features and Implementation Notes
 - Binary arithmetic is not implemented.
-- Vector are valid values in ~CL-KANREN~:
+- Vectors are valid values in ~CL-KANREN~:
   #+BEGIN_SRC lisp
     CL-KANREN> (run* q
                  (fresh (x)
@@ -62,8 +62,8 @@
 [[file:subs.lisp::95][MAPSUBS]].  We applied three principles in the design of ~SUBS-WEAVE~ and
 ~MAPSUBS~: sampling frequency, [[file:util.lisp::24][thunk]] bubbling, and lazy evaluation.  These
 principles allow
-1. some queries to terminate that would otherwise infinitely loop, and
-2. us to remove an exponential bias in stream sampling
+1. us to remove an exponential bias in stream sampling, and
+2. some queries to terminate that would otherwise infinitely loop
 
 ** Sampling Frequency
 Recall, when a goal is applied to a substitution, it returns a substitution
