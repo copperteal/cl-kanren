@@ -1,0 +1,8 @@
+((lisp-mode . ((eval . (put 'defsystem 'common-lisp-indent-function 1))
+               (eval . (put 'thunk 'common-lisp-indent-function 0))
+               (eval . (put 'disj 'common-lisp-indent-function 0))
+               (eval . (put 'conj 'common-lisp-indent-function 0))
+               (eval . (put 'fresh 'common-lisp-indent-function 1))
+               (eval . (put 'run 'common-lisp-indent-function 2))
+               (eval . (put 'run* 'common-lisp-indent-function 1))
+               (eval . (put 'conde 'common-lisp-indent-function 0)))))

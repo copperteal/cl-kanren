@@ -1,0 +1,133 @@
+# -*- mode: Org -*-
+# Copyright (C) 2025 J. David Taylor
+#
+# This file is part of CL-KANREN.
+#
+# CL-KANREN is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+#
+#+TITLE: CL-KANREN: An implementation of miniKanren in Common Lisp
+#+AUTHOR: J. David Taylor
+
+* Features and Implementation Notes
+- Binary arithmetic is not implemented.
+- Vector are valid values in ~CL-KANREN~:
+  #+BEGIN_SRC lisp
+    CL-KANREN> (run* q
+                 (fresh (x)
+                   (== #(x 'apple) q)))
+    => (#(X 'APPLE)) ; first success is vector-valued
+  #+END_SRC
+- ~DISJ~ and ~CONJ~ are implemented directly.  Recursive implementation would
+  [[file:goal.lisp::175][sample a list of goals with an exponential bias]].
+- In ~(RUN N Q . BODY)~, ~N~ is a ~FIXNUM~.  If ~N~ is negative, then all
+  successes are collected.
+- A [[file:sub.lisp::19][substitution]] is called a ~SUB~ and a [[file:subs.lisp::19][substitution stream]] is called a ~SUBS~.
+- Each variable wraps a (probabilistically) unique hash.
+  See block comment in [[file:var.lisp::19][var.lisp]].
+- A substitution is a binary tree rather than an association list.  Variable
+  lookup in a substitution runs in logarithmic rather than linear time at the
+  cost that extending a substitution runs in logarithmic rather than constant
+  time.  See block comment in [[file:sub.lisp::19][sub.lisp]].
+
+* ~CL-KANREN~ lexicon relative to the Reasoned Schemer, 2nd Ed
+|------------------+-----------------|
+| *TRS2*           | *CL-KANREN*     |
+|------------------+-----------------|
+| ~walk~           | ~sub-walk~      |
+| ~ext-s~          | ~sub-extend~    |
+| ~disj2~          | not implemented |
+| ~append-inf~     | ~subs-weave~    |
+| ~take-inf~       | ~subs-take~     |
+| ~conj2~          | not implemented |
+| ~append-map-inf~ | ~mapsubs~       |
+| ~walk*~          | ~sub-walk*~     |
+| ~reify-s~        | ~reify-sub~     |
+| ~ifte~           | not implemented |
+| ~conda~          | not implemented |
+| ~condu~          | not implemented |
+|------------------+-----------------|
+
+* ~APPEND-INF~ and ~APPEND-MAP-INF~
+~APPEND-INF~ and ~APPEND-MAP-INF~ are respectively replaced with [[file:subs.lisp::39][SUBS-WEAVE]] and
+[[file:subs.lisp::95][MAPSUBS]].  We applied three principles in the design of ~SUBS-WEAVE~ and
+~MAPSUBS~: sampling frequency, [[file:util.lisp::24][thunk]] bubbling, and lazy evaluation.  These
+principles allow
+1. some queries to terminate that would otherwise infinitely loop, and
+2. us to remove an exponential bias in stream sampling
+
+** Sampling Frequency
+Recall, when a goal is applied to a substitution, it returns a substitution
+stream.  So when a goal is mapped across a substitution stream, the effect must
+be equivalent to converting that stream of substitutions into an intermediate
+stream of streams and then intertwining them into a single stream.
+
+If ~APPEND-INF~ is written to sample from its two input streams equally, then
+~APPEND-MAP-INF~ samples substitutions from each intermediate stream twice as
+often as the next.  ~SUBS-WEAVE~ takes a variable number of arguments and fairly
+intertwines its streams.  Likewise, ~MAPSUBS~ was written with sampling fairness
+in mind.
+
+** Thunk Bubbling
+Suppose we have
+#+BEGIN_SRC lisp
+  (defun fn1 (subs) ; `SUBS' is a substitution stream
+    (typecase subs
+      (null
+       nil)
+      (cons
+       (cons (car subs)
+             (fn1 (cdr subs))))
+      (function
+       (fn1 (funcall subs)))))
+#+END_SRC
+If ~FN1~ is called on an infinite stream, it will never return.  If ~SUBS0~ is a
+thunk, then we can think of it as ~(THUNK SUBS1)~ for some ~SUBS1~.  If we
+define
+#+BEGIN_SRC lisp
+  (defun fn2 (subs)
+    (typecase subs
+      (null
+       nil)
+      (cons
+       (cons (car subs)
+             (fn2 (cdr subs))))
+      (function
+       (thunk (fn2 (funcall subs))))))
+#+END_SRC
+then ~(FN2 SUBS0)~ evaluates to a thunk equivalent to ~(THUNK (FN2 SUBS1))~.  In
+constrast to ~FN1~, ~FN2~ commutes with wrapping thunks and returns, even for an
+infinite stream with no values.  If ~SUBS2~ is ~(CONS EMPTY-SUB SUB0)~, then
+~(FN2 SUBS2)~ evaluates to an expression equivalent to ~(CONS EMPTY-SUB (THUNK
+(FN2 SUBS1)))~.  In lieu of a better term, we'll name this difference between
+~FN1~ and ~FN2~ /thunk bubbling/.
+
+** Lazy Lists
+Suppose ~SUBS3~ is a /very/ long list.  If ~FN1~ or ~FN2~ is applied to ~SUBS3~
+then the entire list will be duplicated before accessing its first element.  If
+we define
+#+BEGIN_SRC lisp
+  (defun fn3 (subs)
+    (typecase subs
+      (null
+       nil)
+      (cons
+       (cons (car subs)
+             (thunk (fn3 (cdr subs)))))
+      (function
+       (thunk (fn3 (funcall subs))))))
+#+END_SRC
+then ~(FN3 SUBS3)~ returns immediately.
+
+* Miscellaneous Notes
+To paraphrase Dan Friedman, a superscript lowercase 'o' is reminiscent of a
+question mark.
