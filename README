@@ -24,8 +24,8 @@
   #+BEGIN_SRC lisp
     CL-KANREN> (run* q
                  (fresh (x)
-                   (== #(x 'apple) q)))
-    => (#(X 'APPLE)) ; first success is vector-valued
+                   (== (vector x 'apple) q)))
+    => (#(|_0| APPLE)) ; first success is vector-valued
   #+END_SRC
 - ~DISJ~ and ~CONJ~ are implemented directly.  Recursive implementation would
   [[file:goal.lisp::175][sample a list of goals with an exponential bias]].
